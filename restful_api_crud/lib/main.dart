@@ -30,8 +30,20 @@ class Book {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   final String apiUrl = 'http://127.0.0.1:5000/books';
+  late List<Book> _books;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAndRefreshBooks();
+  }
 
   Future<List<Book>> fetchBooks() async {
     final response = await http.get(Uri.parse(apiUrl));
@@ -54,6 +66,7 @@ class MyApp extends StatelessWidget {
 
     if (response.statusCode == 201) {
       dynamic data = jsonDecode(response.body);
+      await _fetchAndRefreshBooks();
       return Book.fromJson(data);
     } else {
       throw Exception('Failed to create book');
@@ -70,7 +83,9 @@ class MyApp extends StatelessWidget {
 
     if (response.statusCode == 200) {
       dynamic data = jsonDecode(response.body);
-      return Book.fromJson(data);
+      Book updatedBook = Book.fromJson(data);
+      await _fetchAndRefreshBooks(); // Fetch and refresh books after update
+      return updatedBook;
     } else {
       throw Exception('Failed to update book');
     }
@@ -80,8 +95,21 @@ class MyApp extends StatelessWidget {
     final url = Uri.parse('$apiUrl/$id');
     final response = await http.delete(url);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      await _fetchAndRefreshBooks(); // Fetch and refresh books after delete
+    } else {
       throw Exception('Failed to delete book');
+    }
+  }
+
+  Future<void> _fetchAndRefreshBooks() async {
+    try {
+      List<Book> books = await fetchBooks();
+      setState(() {
+        _books = books;
+      });
+    } catch (e) {
+      print('Failed to fetch books: $e');
     }
   }
 
